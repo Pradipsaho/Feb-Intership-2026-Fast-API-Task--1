@@ -243,3 +243,102 @@ def place_bulk_order(order: BulkOrder):
         "grand_total": grand_total
     }
 
+# day 3 - 
+# 
+# Q1 — Add Product Model (for POST)
+
+
+class NewProduct(BaseModel):
+    name: str = Field(..., min_length=2)
+    price: int = Field(..., gt=0)
+    category: str
+    in_stock: bool = True
+
+# Q2 — POST /products (Add new product)
+
+
+@app.post("/products", status_code=201)
+def add_product(product: NewProduct):
+
+    # check duplicate name
+    for p in products:
+        if p["name"].lower() == product.name.lower():
+            return {"error": "Product with this name already exists"}
+
+    next_id = max(p["id"] for p in products) + 1
+
+    new_product = {
+        "id": next_id,
+        "name": product.name,
+        "price": product.price,
+        "category": product.category,
+        "in_stock": product.in_stock
+    }
+
+    products.append(new_product)
+
+    return {
+        "message": "Product added",
+        "product": new_product
+    }
+
+
+# Q3 — PUT /products/{id} (Update product price and stock status)
+
+@app.put("/products/{product_id}")
+def update_product(product_id: int, price: int = None, in_stock: bool = None):
+
+    for product in products:
+
+        if product["id"] == product_id:
+
+            if price is not None:
+                product["price"] = price
+
+            if in_stock is not None:
+                product["in_stock"] = in_stock
+
+            return {"message": "Product updated", "product": product}
+
+    return {"error": "Product not found"}
+
+# Q4 — DELETE /products/{id} (Remove a product)
+
+@app.delete("/products/{product_id}")
+def delete_product(product_id: int):
+
+    for product in products:
+
+        if product["id"] == product_id:
+            products.remove(product)
+
+            return {
+                "message": f"Product '{product['name']}' deleted"
+            }
+
+    return {"error": "Product not found"}
+
+
+# Q5 — VERY IMPORTANT — Add /products/audit
+
+@app.get("/products/audit")
+def product_audit():
+
+    in_stock_list = [p for p in products if p["in_stock"]]
+    out_stock_list = [p for p in products if not p["in_stock"]]
+
+    stock_value = sum(p["price"] * 10 for p in in_stock_list)
+
+    priciest = max(products, key=lambda p: p["price"])
+
+    return {
+        "total_products": len(products),
+        "in_stock_count": len(in_stock_list),
+        "out_of_stock_names": [p["name"] for p in out_stock_list],
+        "total_stock_value": stock_value,
+        "most_expensive": {
+            "name": priciest["name"],
+            "price": priciest["price"]
+        }
+    }
+
